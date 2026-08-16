@@ -129,24 +129,13 @@
     .battle-card.claimed { transform: scale(1.08); filter: brightness(1.45); box-shadow: 0 0 24px currentColor, inset 0 0 0 2px currentColor; }
 
     .center[data-state="playing"] .setup-ui,
-    .center[data-state="claim"] .setup-ui,
     .center[data-state="claimed"] .setup-ui,
-    .center[data-state="revealed"] .setup-ui,
-    .center[data-state="paused"] .setup-ui { display: none; }
+    .center[data-state="revealed"] .setup-ui { display: none; }
     .center[data-state="playing"] { border-color: #6c6e7f; }
     .center[data-state="playing"] .phase { background: #35151b; border-color: var(--red); color: #ffabb3; }
-    .center[data-state="claim"] {
-      border-color: #fff;
-      background: #181923fb;
-      box-shadow: 0 0 0 4px #ffffff18, 0 30px 110px #000;
-    }
-    .center[data-state="claim"] .phase { background: #fff; color: #111; }
-    .center[data-state="claim"] .battle-card { animation: wordPulse .6s ease-in-out infinite alternate; opacity: 1; }
     .center[data-state="claimed"] .phase { background: var(--ok); border-color: var(--ok); color: #07150d; }
     .center[data-state="claimed"] .battle-card:not(.claimed),
     .center[data-state="revealed"] .battle-card:not(.claimed) { opacity: .28; filter: grayscale(.45); }
-    .center[data-state="paused"] .phase { background: #4b3511; border-color: var(--warning); color: #ffe4a0; }
-    @keyframes wordPulse { to { transform: translateY(-3px); filter: brightness(1.22); } }
 
     .source-tabs {
       display: grid;
@@ -268,13 +257,6 @@
     }
     .score button.active { background: var(--ok); color: #07150d; }
 
-    .slam { animation: slam .25s ease-out; }
-    @keyframes slam {
-      0% { transform: translate(-50%, -50%) scale(1); }
-      45% { transform: translate(-50%, -50%) scale(1.06); }
-      100% { transform: translate(-50%, -50%) scale(1); }
-    }
-
     @media (max-height: 720px) {
       .center { padding: 12px; }
       .logo { font-size: 36px; }
@@ -299,11 +281,11 @@
 
     <main class="center" id="panel" data-state="setup">
       <div class="logo">SLAM JAM</div>
-      <div class="tag">SLAM IT. SHOUT IT. NAME IT.</div>
+      <div class="tag">HEAR IT. SHOUT IT. NAME IT.</div>
 
       <div id="phase" class="phase">SET UP THE ROUND</div>
       <div id="status" class="status" aria-live="polite">Choose a local song to begin.</div>
-      <div id="heard" class="heard">SLAM stops the song · your battle word claims it</div>
+      <div id="heard" class="heard">Shout your battle word to stop the song and claim it</div>
 
       <div id="battleGrid" class="battle-grid" aria-label="Battle words">
         <button class="battle-card p1" data-claim-player="1"><span>PLAYER 1</span><b>PICKLE</b></button>
@@ -328,7 +310,7 @@
         <section id="spotifyPanel" class="source-panel hidden">
           <div class="warning">
             <strong>PRIVATE DEVELOPMENT TEST ONLY</strong><br>
-            Spotify currently prohibits using its platform in games or trivia quizzes. This source is only for testing playback and slam mechanics with an authorized Premium development account—not for public or commercial gameplay. A launchable Spotify quiz would require Spotify’s written approval.
+            Spotify currently prohibits using its platform in games, trivia quizzes, or voice-control experiences. This source is only for private mechanics testing with an authorized Premium development account—not for public or commercial gameplay. A launchable Spotify quiz would require Spotify’s written approval.
             <a href="https://developer.spotify.com/policy" target="_blank" rel="noreferrer">Read Spotify policy.</a>
             <label class="ack"><input id="policyAck" type="checkbox"> <span>I understand this is a limited private mechanics test and not an approved music source for the game.</span></label>
           </div>
@@ -353,14 +335,10 @@
         </div>
       </div>
 
-      <div class="buttons">
-        <button id="mic" class="btn secondary">Enable Voice</button>
-        <button id="motion" class="btn secondary">Enable Slam</button>
-      </div>
+      <button id="mic" class="btn secondary" style="width:100%;margin-top:10px">Enable Code Words</button>
       <button id="start" class="btn primary-action" disabled>START ROUND</button>
-      <div class="buttons utility-buttons">
+      <div class="buttons">
         <button id="reveal" class="btn secondary" disabled>Reveal</button>
-        <button id="manual" class="btn secondary">Test Slam</button>
         <button id="reset" class="btn secondary">Reset</button>
       </div>
 
@@ -376,7 +354,7 @@
         <div id="roundPts" class="tiny" style="margin-top:6px">Round points: 0</div>
       </section>
 
-      <div class="tiny" style="margin-top:9px">Prototype: phone lies flat on the table. Tap a quadrant if voice misses.</div>
+      <div class="tiny" style="margin-top:9px">Shout your word to claim. Tap a colored word or player quadrant if voice misses.</div>
     </main>
   </div>
 
@@ -410,18 +388,12 @@
       let sourceMode = "local";
       let recognition;
       let listening = false;
-      let motionEnabled = false;
       let locked = false;
-      let claimOpen = false;
       let startedAt = 0;
-      let slamAt = 0;
       let localLoaded = false;
       let points = new Set();
       let filename = "";
       let objectUrl = null;
-      let lastMagnitude = 9.8;
-      let lastImpact = 0;
-      let claimTimer = null;
 
       let spotifyToken = readStoredToken();
       let spotifyPlayer = null;
@@ -431,9 +403,6 @@
       let spotifyTracks = [];
       let spotifyCurrentTrack = null;
       let spotifySdkPromise = null;
-
-      const CLAIM_MS = 2200;
-      const SLAM_DELTA = 7.5;
 
       function message(status, detail, isError = false) {
         $("status").textContent = status;
@@ -451,10 +420,8 @@
         const labels = {
           setup: "SET UP THE ROUND",
           playing: "MUSIC PLAYING",
-          claim: "CLAIM NOW",
           claimed: player ? `PLAYER ${player} WON THE CLAIM` : "CLAIMED",
-          revealed: "ANSWER REVEALED",
-          paused: "NO WORD HEARD"
+          revealed: "ANSWER REVEALED"
         };
         $("phase").textContent = labels[state] || "SLAM JAM";
         battleCards.forEach(card => card.classList.toggle("claimed", Number(card.dataset.claimPlayer) === player));
@@ -493,47 +460,18 @@
         }
       }
 
-      function endClaim() {
-        claimOpen = false;
-        $("status").classList.remove("claim");
-        if (!locked) {
-          setPanelState("paused");
-          $("start").textContent = "REPLAY ROUND";
-          updateStartButton();
-          message("NO CLAIM", "No battle word heard. Replay the round or use Test Slam.");
-        }
-      }
-
-      async function slam(source = "SLAM", force = false) {
-        if ((!isPlaying() && !force) || locked || claimOpen) return;
-        slamAt = performance.now();
-        try { await pausePlayback(); } catch (error) { console.warn(error); }
-        claimOpen = true;
-        setPanelState("claim");
-        $("panel").classList.remove("slam");
-        void $("panel").offsetWidth;
-        $("panel").classList.add("slam");
-        $("status").classList.add("claim");
-        message("SLAM! WHO GOT IT?", "Shout PICKLE · ROCKET · VOLCANO · PENGUIN");
-        navigator.vibrate?.([80, 35, 80]);
-        clearTimeout(claimTimer);
-        claimTimer = setTimeout(endClaim, CLAIM_MS);
-      }
-
-      function win(player, word = "touch") {
-        if (locked || (!claimOpen && word !== "touch")) return;
+      async function claimPlayer(player, word = "touch") {
+        if (!isPlaying() || locked) return;
         locked = true;
-        claimOpen = false;
-        clearTimeout(claimTimer);
-        $("status").classList.remove("claim");
+        try { await pausePlayback(); } catch (error) { console.warn(error); }
         zones.forEach(zone => {
           const hit = Number(zone.dataset.player) === player;
           zone.classList.toggle("winner", hit);
           zone.classList.toggle("dim", !hit);
         });
         setPanelState("claimed", player);
-        const reactionTime = startedAt ? ((slamAt || performance.now()) - startedAt) / 1000 : null;
-        const timing = reactionTime === null ? "test claim" : `slam at ${Math.max(0, reactionTime).toFixed(2)} sec`;
+        const reactionTime = startedAt ? (performance.now() - startedAt) / 1000 : null;
+        const timing = reactionTime === null ? "claimed" : `heard at ${Math.max(0, reactionTime).toFixed(2)} sec`;
         message(`PLAYER ${player} CLAIMS IT!`, `${word.toUpperCase()} · ${timing}`);
         $("reveal").disabled = false;
         $("start").disabled = true;
@@ -542,9 +480,6 @@
 
       function resetRoundUi() {
         locked = false;
-        claimOpen = false;
-        slamAt = 0;
-        clearTimeout(claimTimer);
         clearZones();
         setPanelState("setup");
         $("start").textContent = "START ROUND";
@@ -567,7 +502,7 @@
         $("spotifyTab").setAttribute("aria-selected", String(mode === "spotify"));
         setLocalFieldsHidden(false);
         if (mode === "local") {
-          message(localLoaded ? `${filename} ready` : "Choose a local song to begin.", "SLAM stops the song · your battle word claims it");
+          message(localLoaded ? `${filename} ready` : "Choose a local song to begin.", "Shout your battle word to stop the song and claim it");
         } else {
           message(spotifyReady ? "Spotify test player ready." : "Experimental Spotify mechanics test.", "A Premium authorized development account is required.");
           updateSpotifyControls();
@@ -577,17 +512,16 @@
 
       zones.forEach(zone => {
         zone.onpointerdown = () => {
-          if (claimOpen) win(Number(zone.dataset.player), "touch");
+          claimPlayer(Number(zone.dataset.player), "touch");
         };
       });
       battleCards.forEach(card => {
         card.onpointerdown = () => {
-          if (claimOpen) win(Number(card.dataset.claimPlayer), card.querySelector("b").textContent.toLowerCase());
+          claimPlayer(Number(card.dataset.claimPlayer), card.querySelector("b").textContent.toLowerCase());
         };
       });
       $("localTab").onclick = () => setSource("local");
       $("spotifyTab").onclick = () => setSource("spotify");
-      $("manual").onclick = () => slam("TEST", true);
 
       $("file").onchange = event => {
         const file = event.target.files?.[0];
@@ -603,7 +537,7 @@
         const ready = () => {
           localLoaded = true;
           updateStartButton();
-          message(`${filename} loaded ✓`, "Enable Voice + Slam, then Start Round.");
+          message(`${filename} loaded ✓`, "Enable Code Words, then Start Round.");
         };
         audio.onloadedmetadata = ready;
         audio.oncanplay = ready;
@@ -616,7 +550,7 @@
         await audio.play();
         startedAt = performance.now();
         setPanelState("playing");
-        message("SONG PLAYING — SLAM WHEN YOU KNOW IT!", "The slam stops the music. Then shout your battle word.");
+        message("SONG PLAYING — SHOUT YOUR WORD!", "PICKLE · ROCKET · VOLCANO · PENGUIN");
       }
 
       async function startSpotifyRound() {
@@ -634,7 +568,7 @@
         spotifyPlaying = true;
         startedAt = performance.now();
         setPanelState("playing");
-        message("SPOTIFY TEST PLAYING — TRY THE SLAM!", "Metadata stays visible because Spotify requires attribution during streaming.");
+        message("SPOTIFY TEST PLAYING — SHOUT YOUR WORD!", "Metadata stays visible because Spotify requires attribution during streaming.");
       }
 
       $("start").onclick = async () => {
@@ -654,7 +588,7 @@
         resetRoundUi();
         setLocalFieldsHidden(false);
         if (sourceMode === "local") {
-          message(localLoaded ? `${filename} ready` : "Choose a local song to begin.", "SLAM stops the song · your battle word claims it");
+          message(localLoaded ? `${filename} ready` : "Choose a local song to begin.", "Shout your battle word to stop the song and claim it");
         } else {
           message(spotifyTracks.length ? `${spotifyTracks.length} Spotify test tracks ready.` : "Experimental Spotify mechanics test.", "This source is private development testing only.");
         }
@@ -699,14 +633,14 @@
         recognition.lang = "en-US";
         recognition.onstart = () => {
           listening = true;
-          $("mic").textContent = "Voice ✓";
+          $("mic").textContent = "Code Words ✓";
         };
         recognition.onresult = event => {
-          if (!claimOpen) return;
+          if (!isPlaying() || locked) return;
           for (let i = event.resultIndex; i < event.results.length; i++) {
             for (let j = 0; j < event.results[i].length; j++) {
               const detected = detectWord(event.results[i][j].transcript || "");
-              if (detected) return win(detected.player, detected.word);
+              if (detected) return claimPlayer(detected.player, detected.word);
             }
           }
         };
@@ -722,42 +656,13 @@
           } else {
             listening = false;
             recognition.stop();
-            $("mic").textContent = "Enable Voice";
+            $("mic").textContent = "Enable Code Words";
           }
         };
       } else {
         $("mic").disabled = true;
         $("mic").textContent = "Voice unavailable";
       }
-
-      function motionHit(event) {
-        if (!motionEnabled || !isPlaying() || claimOpen || locked) return;
-        const acceleration = event.accelerationIncludingGravity || event.acceleration;
-        if (!acceleration) return;
-        const magnitude = Math.sqrt((acceleration.x || 0) ** 2 + (acceleration.y || 0) ** 2 + (acceleration.z || 0) ** 2);
-        const delta = Math.abs(magnitude - lastMagnitude);
-        const now = performance.now();
-        lastMagnitude = magnitude;
-        if (delta > SLAM_DELTA && now - lastImpact > 700) {
-          lastImpact = now;
-          slam();
-        }
-      }
-
-      $("motion").onclick = async () => {
-        try {
-          if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
-            const permission = await DeviceMotionEvent.requestPermission();
-            if (permission !== "granted") throw new Error("Motion permission not granted");
-          }
-          if (!motionEnabled) window.addEventListener("devicemotion", motionHit);
-          motionEnabled = true;
-          $("motion").textContent = "Slam ✓";
-          message(sourceCanStart() ? "Slam detection ready" : "Slam detection ready — choose a source", "Phone should lie flat on the table.");
-        } catch (error) {
-          message("Could not enable slam detection", error.message || "Motion sensors unavailable", true);
-        }
-      };
 
       function randomString(length = 64) {
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -970,7 +875,7 @@
         spotifyTracks = tracks;
         updateStartButton();
         if (!tracks.length) throw new Error("No playable tracks were returned for this source.");
-        message(`${tracks.length} Spotify test tracks ready.`, "Start Round tests playback → slam → battle word. Spotify metadata remains visible.");
+        message(`${tracks.length} Spotify test tracks ready.`, "Start Round tests playback → code word → claim. Spotify metadata remains visible.");
       }
 
       function showSpotifyTrack(track) {
