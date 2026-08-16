@@ -213,6 +213,21 @@
       line-height: 1.35;
     }
     .warning strong { color: var(--warning); }
+    .warning-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 7px;
+    }
+    .policy-link {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: #fff;
+      font: inherit;
+      font-weight: 850;
+      text-decoration: underline;
+      cursor: pointer;
+    }
     .ack {
       display: flex;
       gap: 8px;
@@ -221,6 +236,31 @@
       color: #eee;
     }
     .ack input { margin-top: 2px; }
+    .policy-compact {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+      padding: 8px 10px;
+      border: 1px solid #245c37;
+      border-radius: 12px;
+      background: #0d2817;
+      color: #c7ddce;
+      font-size: 11px;
+      text-align: left;
+    }
+    .policy-compact button {
+      flex: 0 0 auto;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: #fff;
+      font: inherit;
+      font-weight: 850;
+      text-decoration: underline;
+      cursor: pointer;
+    }
 
     .spotify-now {
       display: grid;
@@ -308,11 +348,16 @@
         </section>
 
         <section id="spotifyPanel" class="source-panel hidden">
-          <div class="warning">
+          <div id="spotifyWarning" class="warning">
             <strong>PRIVATE DEVELOPMENT TEST ONLY</strong><br>
             Spotify currently prohibits using its platform in games, trivia quizzes, or voice-control experiences. This source is only for private mechanics testing with an authorized Premium development account—not for public or commercial gameplay. A launchable Spotify quiz would require Spotify’s written approval.
             <a href="https://developer.spotify.com/policy" target="_blank" rel="noreferrer">Read Spotify policy.</a>
             <label class="ack"><input id="policyAck" type="checkbox"> <span>I understand this is a limited private mechanics test and not an approved music source for the game.</span></label>
+            <div class="warning-actions"><button id="hidePolicy" class="policy-link" type="button">Hide this note</button></div>
+          </div>
+          <div id="spotifyPolicyCompact" class="policy-compact hidden">
+            <span>Private Spotify test mode</span>
+            <button id="reviewPolicy" type="button">Review note</button>
           </div>
           <div class="buttons">
             <button id="spotifyConnect" class="btn spotify-btn wide" disabled>Connect Spotify test account</button>
@@ -377,6 +422,7 @@
       const TOKEN_KEY = "slamjam_spotify_token";
       const VERIFIER_KEY = "slamjam_spotify_verifier";
       const STATE_KEY = "slamjam_spotify_state";
+      const POLICY_ACK_KEY = "slamjam_spotify_policy_ack";
 
       const $ = id => document.getElementById(id);
       const zones = [...document.querySelectorAll(".zone")];
@@ -396,6 +442,7 @@
       let objectUrl = null;
 
       let spotifyToken = readStoredToken();
+      if (spotifyToken) localStorage.setItem(POLICY_ACK_KEY, "true");
       let spotifyPlayer = null;
       let spotifyDeviceId = "";
       let spotifyReady = false;
@@ -474,7 +521,8 @@
         const timing = reactionTime === null ? "claimed" : `heard at ${Math.max(0, reactionTime).toFixed(2)} sec`;
         message(`PLAYER ${player} CLAIMS IT!`, `${word.toUpperCase()} · ${timing}`);
         $("reveal").disabled = false;
-        $("start").disabled = true;
+        $("start").disabled = false;
+        $("start").textContent = "NEXT ROUND";
         navigator.vibrate?.([50, 30, 100]);
       }
 
@@ -693,7 +741,7 @@
       }
 
       async function connectSpotify() {
-        if (!$("policyAck").checked) return;
+        if (localStorage.getItem(POLICY_ACK_KEY) !== "true") return;
         const verifier = randomString(64);
         const state = randomString(32);
         sessionStorage.setItem(VERIFIER_KEY, verifier);
@@ -890,9 +938,19 @@
 
       function updateSpotifyControls() {
         const connected = Boolean(spotifyToken);
+        const approved = localStorage.getItem(POLICY_ACK_KEY) === "true";
+        $("policyAck").checked = approved;
         $("spotifyConnect").classList.toggle("hidden", connected);
         $("spotifyDisconnect").classList.toggle("hidden", !connected);
-        $("spotifyConnect").disabled = !$("policyAck").checked;
+        $("spotifyConnect").disabled = !approved;
+      }
+
+      function syncPolicyNotice(forceReview = false) {
+        const approved = localStorage.getItem(POLICY_ACK_KEY) === "true";
+        $("policyAck").checked = approved;
+        $("spotifyWarning").classList.toggle("hidden", approved && !forceReview);
+        $("spotifyPolicyCompact").classList.toggle("hidden", !approved || forceReview);
+        updateSpotifyControls();
       }
 
       function disconnectSpotify() {
@@ -913,7 +971,17 @@
         message("Spotify disconnected.", "Local song mode is still available.");
       }
 
-      $("policyAck").onchange = updateSpotifyControls;
+      $("policyAck").onchange = () => {
+        if ($("policyAck").checked) {
+          localStorage.setItem(POLICY_ACK_KEY, "true");
+          syncPolicyNotice();
+        } else {
+          localStorage.removeItem(POLICY_ACK_KEY);
+          syncPolicyNotice(true);
+        }
+      };
+      $("reviewPolicy").onclick = () => syncPolicyNotice(true);
+      $("hidePolicy").onclick = () => syncPolicyNotice();
       $("spotifyConnect").onclick = () => connectSpotify().catch(error => message("Spotify connection failed", error.message, true));
       $("spotifyDisconnect").onclick = disconnectSpotify;
       $("loadSpotify").onclick = () => loadSpotifyTrackSource().catch(error => message("Could not load Spotify source", friendlySpotifyError(error), true));
@@ -926,8 +994,8 @@
         if (!code && !error) return false;
         history.replaceState({}, document.title, SPOTIFY_REDIRECT_URI);
         setSource("spotify");
-        $("policyAck").checked = true;
-        updateSpotifyControls();
+        localStorage.setItem(POLICY_ACK_KEY, "true");
+        syncPolicyNotice();
         if (error) throw new Error(`Spotify authorization ${error.replace(/_/g, " ")}.`);
         message("Finishing Spotify sign-in…", "Checking the PKCE response.");
         await exchangeSpotifyCode(code, state);
@@ -936,7 +1004,7 @@
         return true;
       }
 
-      updateSpotifyControls();
+      syncPolicyNotice();
       handleSpotifyCallback().catch(error => message("Spotify sign-in failed", friendlySpotifyError(error), true));
     })();
   </script>
