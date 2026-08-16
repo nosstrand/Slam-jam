@@ -8,7 +8,7 @@
   <style>
     :root {
       --bg: #09090e;
-      --panel: #15151ef5;
+      --panel: #12131cf7;
       --muted: #a8a8b7;
       --red: #ff5060;
       --yellow: #ffd54a;
@@ -49,6 +49,7 @@
       font-size: clamp(22px, 6vw, 42px);
       font-weight: 1000;
       user-select: none;
+      transition: filter .18s ease, opacity .18s ease, transform .18s ease;
     }
     .zone small {
       display: block;
@@ -57,10 +58,10 @@
       font-size: 11px;
       letter-spacing: .12em;
     }
-    .z1 { background: #42151c; color: var(--red); }
-    .z2 { background: #423612; color: var(--yellow); }
-    .z3 { background: #123946; color: var(--blue); }
-    .z4 { background: #173b18; color: var(--green); }
+    .z1 { background: radial-gradient(circle at 70% 70%, #792632, #2e1016 65%); color: var(--red); }
+    .z2 { background: radial-gradient(circle at 30% 70%, #6d591c, #2b250f 65%); color: var(--yellow); }
+    .z3 { background: radial-gradient(circle at 30% 30%, #195c70, #0e2b35 65%); color: var(--blue); }
+    .z4 { background: radial-gradient(circle at 70% 30%, #27652a, #102c12 65%); color: var(--green); }
     .winner { z-index: 3; filter: brightness(1.9); box-shadow: inset 0 0 0 7px currentColor; }
     .dim { opacity: .28; }
 
@@ -69,29 +70,89 @@
       z-index: 10;
       top: 50%;
       left: 50%;
-      width: min(90vw, 520px);
+      width: min(94vw, 560px);
       max-height: 94vh;
-      padding: 16px;
+      padding: 18px;
       overflow: auto;
       transform: translate(-50%, -50%);
-      border: 1px solid #3a3a46;
-      border-radius: 27px;
+      border: 1px solid #464858;
+      border-radius: 30px;
       background: var(--panel);
       text-align: center;
-      box-shadow: 0 24px 90px #000;
+      box-shadow: 0 28px 100px #000c, inset 0 1px 0 #ffffff0d;
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
     }
-    .logo { font-size: 44px; font-weight: 1000; letter-spacing: -3px; line-height: .9; }
+    .logo { font-size: 46px; font-weight: 1000; letter-spacing: -3.5px; line-height: .9; }
     .tag, .tiny { color: var(--muted); font-size: 11px; }
-    .status { margin: 12px 0 7px; font-size: 18px; font-weight: 1000; }
-    .heard { min-height: 19px; color: #c8c8d1; font-size: 12px; }
+    .phase {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      margin-top: 12px;
+      padding: 5px 11px;
+      border: 1px solid #414354;
+      border-radius: 999px;
+      background: #242632;
+      color: #d6d7df;
+      font-size: 10px;
+      font-weight: 1000;
+      letter-spacing: .13em;
+    }
+    .status { margin: 8px 0 5px; font-size: clamp(19px, 5vw, 27px); font-weight: 1000; line-height: 1.02; }
+    .heard { min-height: 18px; color: #c8c8d1; font-size: 12px; }
     .error { color: var(--error) !important; }
-    .claim { color: #fff !important; font-size: 27px !important; }
+    .claim { color: #fff !important; font-size: clamp(28px, 8vw, 42px) !important; }
+
+    .battle-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+      margin-top: 12px;
+    }
+    .battle-card {
+      min-width: 0;
+      padding: 9px 3px 10px;
+      border: 1px solid currentColor;
+      border-radius: 14px;
+      background: #1f202a;
+      color: #fff;
+      opacity: .88;
+      box-shadow: inset 0 0 18px #0004;
+      transition: transform .16s ease, opacity .16s ease, filter .16s ease, box-shadow .16s ease;
+    }
+    .battle-card span { display: block; margin-bottom: 3px; font-size: 9px; font-weight: 900; letter-spacing: .08em; opacity: .72; }
+    .battle-card b { display: block; overflow: hidden; font-size: clamp(10px, 2.7vw, 14px); letter-spacing: -.02em; text-overflow: ellipsis; }
+    .battle-card.p1 { color: var(--red); background: #3c171d; }
+    .battle-card.p2 { color: var(--yellow); background: #3b3215; }
+    .battle-card.p3 { color: var(--blue); background: #153843; }
+    .battle-card.p4 { color: var(--green); background: #183919; }
+    .battle-card.claimed { transform: scale(1.08); filter: brightness(1.45); box-shadow: 0 0 24px currentColor, inset 0 0 0 2px currentColor; }
+
+    .center[data-state="playing"] .setup-ui,
+    .center[data-state="claim"] .setup-ui,
+    .center[data-state="claimed"] .setup-ui,
+    .center[data-state="revealed"] .setup-ui,
+    .center[data-state="paused"] .setup-ui { display: none; }
+    .center[data-state="playing"] { border-color: #6c6e7f; }
+    .center[data-state="playing"] .phase { background: #35151b; border-color: var(--red); color: #ffabb3; }
+    .center[data-state="claim"] {
+      border-color: #fff;
+      background: #181923fb;
+      box-shadow: 0 0 0 4px #ffffff18, 0 30px 110px #000;
+    }
+    .center[data-state="claim"] .phase { background: #fff; color: #111; }
+    .center[data-state="claim"] .battle-card { animation: wordPulse .6s ease-in-out infinite alternate; opacity: 1; }
+    .center[data-state="claimed"] .phase { background: var(--ok); border-color: var(--ok); color: #07150d; }
+    .center[data-state="claimed"] .battle-card:not(.claimed),
+    .center[data-state="revealed"] .battle-card:not(.claimed) { opacity: .28; filter: grayscale(.45); }
+    .center[data-state="paused"] .phase { background: #4b3511; border-color: var(--warning); color: #ffe4a0; }
+    @keyframes wordPulse { to { transform: translateY(-3px); filter: brightness(1.22); } }
 
     .source-tabs {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 7px;
-      margin-top: 12px;
+      margin-top: 10px;
       padding: 4px;
       border-radius: 16px;
       background: #0e0e15;
@@ -129,6 +190,7 @@
     .btn {
       border: 0;
       border-radius: 14px;
+      min-height: 44px;
       padding: 11px 8px;
       background: #fff;
       color: #111;
@@ -136,6 +198,17 @@
     }
     .btn:disabled { opacity: .35; }
     .secondary { background: #292934; color: #fff; }
+    .primary-action {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 9px;
+      background: linear-gradient(135deg, #fff, #dfe0e8);
+      font-size: 16px;
+      letter-spacing: .01em;
+      box-shadow: 0 8px 24px #0006;
+    }
+    .utility-buttons { grid-template-columns: repeat(3, 1fr); margin-top: 7px; }
+    .utility-buttons .btn { min-height: 40px; padding: 8px 4px; font-size: 12px; }
     .spotify-btn { background: var(--spotify); color: #06150b; }
     .wide { grid-column: 1 / -1; }
 
@@ -205,7 +278,15 @@
     @media (max-height: 720px) {
       .center { padding: 12px; }
       .logo { font-size: 36px; }
+      .phase { margin-top: 8px; }
+      .battle-grid { margin-top: 8px; }
       .warning { padding: 8px; }
+    }
+    @media (max-width: 420px) {
+      .center { width: 95vw; border-radius: 25px; }
+      .battle-grid { grid-template-columns: 1fr 1fr; }
+      .battle-card { padding: 7px 4px; }
+      .battle-card b { font-size: 13px; }
     }
   </style>
 </head>
@@ -216,58 +297,71 @@
     <div class="zone z4" data-player="4"><div>PLAYER 4<small>VOLCANO</small></div></div>
     <div class="zone z3" data-player="3"><div>PLAYER 3<small>PENGUIN</small></div></div>
 
-    <main class="center" id="panel">
+    <main class="center" id="panel" data-state="setup">
       <div class="logo">SLAM JAM</div>
       <div class="tag">SLAM IT. SHOUT IT. NAME IT.</div>
 
-      <div class="source-tabs" role="tablist" aria-label="Music source">
-        <button id="localTab" class="tab active" role="tab" aria-selected="true">Local song</button>
-        <button id="spotifyTab" class="tab spotify" role="tab" aria-selected="false">Spotify test</button>
-      </div>
-
+      <div id="phase" class="phase">SET UP THE ROUND</div>
       <div id="status" class="status" aria-live="polite">Choose a local song to begin.</div>
       <div id="heard" class="heard">SLAM stops the song · your battle word claims it</div>
 
-      <section id="localPanel" class="source-panel">
-        <input id="file" class="picker" type="file" aria-label="Choose a local audio file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav,audio/aac,.mp3,.m4a,.wav,.aac">
-        <input id="artist" class="meta" placeholder="Artist (optional)">
-        <input id="title" class="meta" placeholder="Title (optional)">
-        <input id="year" class="meta" placeholder="Year (optional)" inputmode="numeric">
-      </section>
+      <div id="battleGrid" class="battle-grid" aria-label="Battle words">
+        <button class="battle-card p1" data-claim-player="1"><span>PLAYER 1</span><b>PICKLE</b></button>
+        <button class="battle-card p2" data-claim-player="2"><span>PLAYER 2</span><b>ROCKET</b></button>
+        <button class="battle-card p4" data-claim-player="4"><span>PLAYER 4</span><b>VOLCANO</b></button>
+        <button class="battle-card p3" data-claim-player="3"><span>PLAYER 3</span><b>PENGUIN</b></button>
+      </div>
 
-      <section id="spotifyPanel" class="source-panel hidden">
-        <div class="warning">
-          <strong>PRIVATE DEVELOPMENT TEST ONLY</strong><br>
-          Spotify currently prohibits using its platform in games or trivia quizzes. This source is only for testing playback and slam mechanics with an authorized Premium development account—not for public or commercial gameplay. A launchable Spotify quiz would require Spotify’s written approval.
-          <a href="https://developer.spotify.com/policy" target="_blank" rel="noreferrer">Read Spotify policy.</a>
-          <label class="ack"><input id="policyAck" type="checkbox"> <span>I understand this is a limited private mechanics test and not an approved music source for the game.</span></label>
+      <div class="setup-ui">
+        <div class="source-tabs" role="tablist" aria-label="Music source">
+          <button id="localTab" class="tab active" role="tab" aria-selected="true">Local song</button>
+          <button id="spotifyTab" class="tab spotify" role="tab" aria-selected="false">Spotify test</button>
         </div>
-        <div class="buttons">
-          <button id="spotifyConnect" class="btn spotify-btn wide" disabled>Connect Spotify test account</button>
-          <button id="spotifyDisconnect" class="btn secondary wide hidden">Disconnect Spotify</button>
-        </div>
-        <select id="spotifySource" class="select hidden" aria-label="Spotify test source">
-          <option value="liked">Liked Songs</option>
-        </select>
-        <button id="loadSpotify" class="btn secondary wide hidden" style="width:100%;margin-top:7px">Load test source</button>
-        <div id="spotifyNow" class="spotify-now hidden">
-          <img id="spotifyArt" alt="Spotify album cover">
-          <div>
-            <div id="spotifyTrack" class="track"></div>
-            <div id="spotifyArtist" class="artist"></div>
-            <a id="spotifyLink" class="brand" target="_blank" rel="noreferrer">OPEN IN SPOTIFY ↗</a>
+
+        <section id="localPanel" class="source-panel">
+          <input id="file" class="picker" type="file" aria-label="Choose a local audio file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav,audio/aac,.mp3,.m4a,.wav,.aac">
+          <input id="artist" class="meta" placeholder="Artist (optional)">
+          <input id="title" class="meta" placeholder="Title (optional)">
+          <input id="year" class="meta" placeholder="Year (optional)" inputmode="numeric">
+        </section>
+
+        <section id="spotifyPanel" class="source-panel hidden">
+          <div class="warning">
+            <strong>PRIVATE DEVELOPMENT TEST ONLY</strong><br>
+            Spotify currently prohibits using its platform in games or trivia quizzes. This source is only for testing playback and slam mechanics with an authorized Premium development account—not for public or commercial gameplay. A launchable Spotify quiz would require Spotify’s written approval.
+            <a href="https://developer.spotify.com/policy" target="_blank" rel="noreferrer">Read Spotify policy.</a>
+            <label class="ack"><input id="policyAck" type="checkbox"> <span>I understand this is a limited private mechanics test and not an approved music source for the game.</span></label>
           </div>
+          <div class="buttons">
+            <button id="spotifyConnect" class="btn spotify-btn wide" disabled>Connect Spotify test account</button>
+            <button id="spotifyDisconnect" class="btn secondary wide hidden">Disconnect Spotify</button>
+          </div>
+          <select id="spotifySource" class="select hidden" aria-label="Spotify test source">
+            <option value="liked">Liked Songs</option>
+          </select>
+          <button id="loadSpotify" class="btn secondary wide hidden" style="width:100%;margin-top:7px">Load test source</button>
+          <div class="tiny" style="margin-top:7px">Uses PKCE + Web Playback SDK · no client secret · Premium required · redirect: slam-jam-obh1.vercel.app/</div>
+        </section>
+      </div>
+
+      <div id="spotifyNow" class="spotify-now hidden">
+        <img id="spotifyArt" alt="Spotify album cover">
+        <div>
+          <div id="spotifyTrack" class="track"></div>
+          <div id="spotifyArtist" class="artist"></div>
+          <a id="spotifyLink" class="brand" target="_blank" rel="noreferrer">OPEN IN SPOTIFY ↗</a>
         </div>
-        <div class="tiny" style="margin-top:7px">Uses PKCE + Web Playback SDK · no client secret · Premium required · redirect: slam-jam-obh1.vercel.app/</div>
-      </section>
+      </div>
 
       <div class="buttons">
         <button id="mic" class="btn secondary">Enable Voice</button>
         <button id="motion" class="btn secondary">Enable Slam</button>
-        <button id="start" class="btn" disabled>Start Round</button>
+      </div>
+      <button id="start" class="btn primary-action" disabled>START ROUND</button>
+      <div class="buttons utility-buttons">
         <button id="reveal" class="btn secondary" disabled>Reveal</button>
-        <button id="reset" class="btn secondary">Reset</button>
         <button id="manual" class="btn secondary">Test Slam</button>
+        <button id="reset" class="btn secondary">Reset</button>
       </div>
 
       <section id="revealBox" class="reveal">
@@ -308,6 +402,7 @@
 
       const $ = id => document.getElementById(id);
       const zones = [...document.querySelectorAll(".zone")];
+      const battleCards = [...document.querySelectorAll(".battle-card")];
       const audio = $("audio");
       const words = { pickle: 1, rocket: 2, penguin: 3, volcano: 4 };
       const aliases = { pickles: "pickle", rockets: "rocket", penguins: "penguin", volcanoes: "volcano" };
@@ -348,6 +443,21 @@
 
       function clearZones() {
         zones.forEach(zone => zone.classList.remove("winner", "dim"));
+        battleCards.forEach(card => card.classList.remove("claimed"));
+      }
+
+      function setPanelState(state, player = null) {
+        $("panel").dataset.state = state;
+        const labels = {
+          setup: "SET UP THE ROUND",
+          playing: "MUSIC PLAYING",
+          claim: "CLAIM NOW",
+          claimed: player ? `PLAYER ${player} WON THE CLAIM` : "CLAIMED",
+          revealed: "ANSWER REVEALED",
+          paused: "NO WORD HEARD"
+        };
+        $("phase").textContent = labels[state] || "SLAM JAM";
+        battleCards.forEach(card => card.classList.toggle("claimed", Number(card.dataset.claimPlayer) === player));
       }
 
       function setLocalFieldsHidden(hidden) {
@@ -386,7 +496,12 @@
       function endClaim() {
         claimOpen = false;
         $("status").classList.remove("claim");
-        if (!locked) message("NO CLAIM — RESUME?", "No battle word heard. Tap Start Round to replay.");
+        if (!locked) {
+          setPanelState("paused");
+          $("start").textContent = "REPLAY ROUND";
+          updateStartButton();
+          message("NO CLAIM", "No battle word heard. Replay the round or use Test Slam.");
+        }
       }
 
       async function slam(source = "SLAM", force = false) {
@@ -394,11 +509,12 @@
         slamAt = performance.now();
         try { await pausePlayback(); } catch (error) { console.warn(error); }
         claimOpen = true;
+        setPanelState("claim");
         $("panel").classList.remove("slam");
         void $("panel").offsetWidth;
         $("panel").classList.add("slam");
         $("status").classList.add("claim");
-        message("SLAM! WHO GOT IT?", "Shout PICKLE · ROCKET · PENGUIN · VOLCANO");
+        message("SLAM! WHO GOT IT?", "Shout PICKLE · ROCKET · VOLCANO · PENGUIN");
         navigator.vibrate?.([80, 35, 80]);
         clearTimeout(claimTimer);
         claimTimer = setTimeout(endClaim, CLAIM_MS);
@@ -415,9 +531,12 @@
           zone.classList.toggle("winner", hit);
           zone.classList.toggle("dim", !hit);
         });
-        const reactionTime = ((slamAt || performance.now()) - startedAt) / 1000;
-        message(`PLAYER ${player} CLAIMS IT!`, `${word.toUpperCase()} · slam at ${Math.max(0, reactionTime).toFixed(2)} sec`);
+        setPanelState("claimed", player);
+        const reactionTime = startedAt ? ((slamAt || performance.now()) - startedAt) / 1000 : null;
+        const timing = reactionTime === null ? "test claim" : `slam at ${Math.max(0, reactionTime).toFixed(2)} sec`;
+        message(`PLAYER ${player} CLAIMS IT!`, `${word.toUpperCase()} · ${timing}`);
         $("reveal").disabled = false;
+        $("start").disabled = true;
         navigator.vibrate?.([50, 30, 100]);
       }
 
@@ -427,6 +546,8 @@
         slamAt = 0;
         clearTimeout(claimTimer);
         clearZones();
+        setPanelState("setup");
+        $("start").textContent = "START ROUND";
         resetPoints();
         $("revealBox").classList.remove("show");
         $("reveal").disabled = true;
@@ -459,6 +580,11 @@
           if (claimOpen) win(Number(zone.dataset.player), "touch");
         };
       });
+      battleCards.forEach(card => {
+        card.onpointerdown = () => {
+          if (claimOpen) win(Number(card.dataset.claimPlayer), card.querySelector("b").textContent.toLowerCase());
+        };
+      });
       $("localTab").onclick = () => setSource("local");
       $("spotifyTab").onclick = () => setSource("spotify");
       $("manual").onclick = () => slam("TEST", true);
@@ -489,6 +615,7 @@
         audio.currentTime = 0;
         await audio.play();
         startedAt = performance.now();
+        setPanelState("playing");
         message("SONG PLAYING — SLAM WHEN YOU KNOW IT!", "The slam stops the music. Then shout your battle word.");
       }
 
@@ -506,6 +633,7 @@
         if (response && !response.ok) throw new Error(await spotifyError(response));
         spotifyPlaying = true;
         startedAt = performance.now();
+        setPanelState("playing");
         message("SPOTIFY TEST PLAYING — TRY THE SLAM!", "Metadata stays visible because Spotify requires attribution during streaming.");
       }
 
@@ -533,6 +661,7 @@
       };
 
       $("reveal").onclick = () => {
+        setPanelState("revealed", Number(document.querySelector(".battle-card.claimed")?.dataset.claimPlayer) || null);
         $("revealBox").classList.add("show");
         if (sourceMode === "spotify" && spotifyCurrentTrack) {
           $("ansTitle").textContent = spotifyCurrentTrack.name || "Unknown title";
